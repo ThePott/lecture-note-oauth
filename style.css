@@ -34,7 +34,7 @@ main#app-boundary button#kakao-login-button {
 main#app-boundary button#naver-login-button {
     padding: 12px;
 }
-main#app-boundary div#profile-image-container {
+main#app-boundary img#profile-image {
     width: 100px;
     height: 100px;
     background-color: lightgreen;
