@@ -21,12 +21,13 @@ const corsOptions = {
 }
 app.use(cors(corsOptions))
 
-app.get("/kakao/client-id", (req, res) => {
-    console.log("---- server here")
+app.get("/kakao/env", (req, res) => {
     res.status(200).send(kakaoClientId)
 })
 
-const getKakaoToken = async (authorizationCode) => {
+app.post("/kakao/code-to-token", async (req, res) => {
+    const authorizationCode = req.body
+
     url = `https://kauth.kakao.com/oauth/token`
     const response = await axios.post(
         url,
@@ -34,15 +35,7 @@ const getKakaoToken = async (authorizationCode) => {
         { headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" } }
     )
     const accessToken = response.data.access_token
-    console.log("----- access token in server:", accessToken)
-    return accessToken
-}
 
-app.post("/kakao/code-to-token", async (req, res) => {
-    const authorizationCode = req.body
-    console.log("--- aut code:", authorizationCode)
-    const accessToken = await getKakaoToken(authorizationCode)
-    res.cookie("kakao_access_token", accessToken)
     res.status(200).send(accessToken)
 })
 
@@ -82,6 +75,7 @@ app.post("/kakao/logout", async (req, res) => {
     res.send("---- logout success")
 })
 
+
 app.get("/naver/env", async (req, res) => {
     res.json({ naverState, naverClientId, naverClientSecret })
 })
@@ -99,10 +93,10 @@ app.post("/naver/code-to-token", async (req, res) => {
 
 app.get("/naver/user-info", async (req, res) => {
     const naverAccessToken = req.headers.authorization.split(" ")[1]
-    const response = await axios.get("https://openapi.naver.com/v1/nid/me", {headers: {"Authorization": `Bearer ${naverAccessToken}`}})
-    const {name, profile_image} = response.data.response
+    const response = await axios.get("https://openapi.naver.com/v1/nid/me", { headers: { "Authorization": `Bearer ${naverAccessToken}` } })
+    const { name, profile_image } = response.data.response
     console.log("--- in server user info:", name, profile_image, response.data)
-    res.json({name, profile_image})
+    res.json({ name, profile_image })
 })
 
 app.post("/naver/logout", async (req, res) => {

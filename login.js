@@ -1,5 +1,3 @@
-
-
 const kakaoLoginButton = document.querySelector("#kakao-login-button")
 const naverLoginButton = document.querySelector("#naver-login-button")
 
@@ -19,30 +17,37 @@ let currentlyLoggedInWith = null
 axios.defaults.baseURL = "http://localhost:3000"
 axios.defaults.headers.common["Content-Type"] = "text/plain"
 
-const checkThenGetApiKey = async () => {
-    if (kakaoClientId) { return }
-    const response = await axios.get("/kakao/client-id")
-    if (!response || !response.data) { console.error("---- ERROR OCCURRED: Fail to get api key") }
-    kakaoClientId = response.data
-}
-
-const getKakaoToken = async (authorizationCode) => {
-    const accessTokenResponse = await axios.post("/kakao/code-to-token", authorizationCode)
-    kakaoAccessToken = accessTokenResponse.data
-}
-
-const getKakaoUserInfo = async () => {
-    const response = await axios.post("/kakao/user-info", kakaoAccessToken)
-    const { nickname, profile_image, thumbnail_image } = response.data
-    return { nickname, profile_image, thumbnail_image }
-}
-
 const updateProfile = (nickname, profile_image) => {
     userName.innerText = nickname
     profileImage.src = profile_image
 }
 
+/** KAKAO env */
+const updateKakaoEnv = async () => {
+    if (kakaoClientId) { return }
+    const response = await axios.get("/kakao/env")
+    if (!response || !response.data) { console.error("---- ERROR OCCURRED: Fail to get api key") }
+    kakaoClientId = response.data
+}
 
+/** KAKAO env -> auth code */
+kakaoLoginButton.addEventListener("click", async () => {
+    await updateKakaoEnv()
+    location.href = `https://kauth.kakao.com/oauth/authorize/?client_id=${kakaoClientId}&redirect_uri=${redirectUri}&response_type=code`
+})
+
+/** KAKAO code -> token */
+const updateKakaoAccessToken = async (authorizationCode) => {
+    const accessTokenResponse = await axios.post("/kakao/code-to-token", authorizationCode)
+    kakaoAccessToken = accessTokenResponse.data
+}
+
+/** token -> user info */
+const getKakaoUserInfo = async () => {
+    const response = await axios.post("/kakao/user-info", kakaoAccessToken)
+    const { nickname, profile_image, thumbnail_image } = response.data
+    return { nickname, profile_image, thumbnail_image }
+}
 
 const kakaoLogout = async () => {
     if (!kakaoAccessToken) {
@@ -54,13 +59,8 @@ const kakaoLogout = async () => {
     updateProfile("", "")
 }
 
-kakaoLoginButton.addEventListener("click", async () => {
-    await checkThenGetApiKey()
-    location.href = `https://kauth.kakao.com/oauth/authorize/?client_id=${kakaoClientId}&redirect_uri=${redirectUri}&response_type=code`
-})
-
-/** env -> auth code */
-naverLoginButton.addEventListener("click", async () => {
+/** NAVER env */
+const updateNaverEnv = async () => {
     if (naverClientId && naverClientSecret) { return }
 
     // env variable 가져오기
@@ -68,10 +68,33 @@ naverLoginButton.addEventListener("click", async () => {
     naverState = response.data.naverState
     naverClientId = response.data.naverClientId
     naverClientSecret = response.data.naverClientSecret
+}
+
+/** NAVER env -> auth code */
+naverLoginButton.addEventListener("click", async () => {
+    await updateNaverEnv()
 
     // auth code 받기
     location.href = `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&response_type=code&redirect_uri=${redirectUri}&state=${naverState}`
 })
+
+/** NAVER code -> token */
+const updateNaverAccessToken = async (authorizationCode) => {
+    const response = await axios.post("/naver/code-to-token", authorizationCode)
+    const { access_token } = response.data
+    naverAccessToken = access_token
+}
+
+/** NAVER token -> user info */
+const getNaverUserInfo = async () => {
+    const response = await axios.get(
+        "/naver/user-info",
+        { headers: { "Authorization": `Bearer ${naverAccessToken}` } }
+    )
+    const { name, profile_image } = response.data
+
+    updateProfile(name, profile_image)
+}
 
 const naverLogout = async () => {
     if (!naverAccessToken) {
@@ -81,6 +104,30 @@ const naverLogout = async () => {
     }
     const _response = await axios.post("/naver/logout", undefined, { headers: { "Authorization": `Bearer ${kakaoAccessToken}` } })
     updateProfile("", "")
+}
+
+/** code -> token -> ui */
+window.onload = async () => {
+    const searchParams = new URLSearchParams(window.location.search)
+
+    const authorizationCode = searchParams.get("code")
+    if (!authorizationCode) {
+        console.error("---- got no code from kakao even after redirect")
+        return
+    }
+
+    const isNaver = Boolean(searchParams.get("state"))
+    if (isNaver) {
+        await updateNaverAccessToken(authorizationCode)
+        await getNaverUserInfo()
+        currentlyLoggedInWith = "naver"
+
+    } else {
+        await updateKakaoAccessToken(authorizationCode)
+        const { nickname, profile_image, thumbnail_image } = await getKakaoUserInfo()
+        updateProfile(nickname, profile_image)
+        currentlyLoggedInWith = "kakao"
+    }
 }
 
 logoutButton.addEventListener("click", async () => {
@@ -102,45 +149,3 @@ logoutButton.addEventListener("click", async () => {
     }
 
 })
-
-/** code -> token */
-const getNaverAccessToken = async (authorizationCode) => {
-    const response = await axios.post("/naver/code-to-token", authorizationCode)
-    const { access_token } = response.data
-    naverAccessToken = access_token
-}
-
-/** token -> user info */
-const getNaverUserInfo = async () => {
-    const response = await axios.get(
-        "/naver/user-info",
-        { headers: { "Authorization": `Bearer ${naverAccessToken}` } }
-    )
-    const { name, profile_image } = response.data
-
-    updateProfile(name, profile_image)
-}
-
-/** code -> token -> ui */
-window.onload = async () => {
-    const searchParams = new URLSearchParams(window.location.search)
-
-    const authorizationCode = searchParams.get("code")
-    if (!authorizationCode) {
-        console.error("---- got no code from kakao even after redirect")
-        return
-    }
-
-    const isNaver = Boolean(searchParams.get("state"))
-    if (isNaver) {
-        await getNaverAccessToken(authorizationCode)
-        await getNaverUserInfo()
-        currentlyLoggedInWith = "naver"
-
-    } else {
-        await getKakaoToken(authorizationCode)
-        const { nickname, profile_image, thumbnail_image } = await getKakaoUserInfo()
-        updateProfile(nickname, profile_image)
-        currentlyLoggedInWith = "kakao"
-    }
-}
