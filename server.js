@@ -105,4 +105,15 @@ app.get("/naver/user-info", async (req, res) => {
     res.json({name, profile_image})
 })
 
+app.post("/naver/logout", async (req, res) => {
+    const naverAccessToken = req.headers.authorization.split(" ")[1]
+    console.log("---- in server token:", naverAccessToken)
+    if (!naverAccessToken) {
+        res.status(400).send("Invalid request")
+    }
+    const url = `https://nid.naver.com/oauth2.0/token?grant_type=delete&client_id=${naverClientId}&client_secret=${naverClientSecret}&access_token=${naverAccessToken}&service_provider=NAVER`
+    const _response = await axios.post(url)
+    res.status(200).send("---- 네이버 로그아웃 성공!")
+})
+
 app.listen(3000, () => console.log("server is on port 3000"))

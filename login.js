@@ -14,6 +14,7 @@ let naverClientId = null
 let naverClientSecret = null
 let naverAccessToken = null
 let naverState = null
+let currentlyLoggedInWith = null
 
 axios.defaults.baseURL = "http://localhost:3000"
 axios.defaults.headers.common["Content-Type"] = "text/plain"
@@ -72,15 +73,40 @@ naverLoginButton.addEventListener("click", async () => {
     location.href = `https://nid.naver.com/oauth2.0/authorize?client_id=${naverClientId}&response_type=code&redirect_uri=${redirectUri}&state=${naverState}`
 })
 
+const naverLogout = async () => {
+    if (!naverAccessToken) {
+        console.error("---- ERROR: No access token")
+        debugger
+        return
+    }
+    const _response = await axios.post("/naver/logout", undefined, { headers: { "Authorization": `Bearer ${kakaoAccessToken}` } })
+    updateProfile("", "")
+}
 
 logoutButton.addEventListener("click", async () => {
-    await kakaoLogout()
+    if (!currentlyLoggedInWith) {
+        console.error("---- ERROR OCCURRED: what did you login with?")
+        return
+    }
+
+    switch (currentlyLoggedInWith) {
+        case "kakao":
+            await kakaoLogout()
+            return
+        case "naver":
+            await naverLogout()
+            return
+        default:
+            console.error("---- ERROR OCCURRED: invalid login method")
+            return
+    }
+
 })
 
 /** code -> token */
 const getNaverAccessToken = async (authorizationCode) => {
     const response = await axios.post("/naver/code-to-token", authorizationCode)
-    const {access_token} = response.data
+    const { access_token } = response.data
     naverAccessToken = access_token
 }
 
@@ -90,8 +116,8 @@ const getNaverUserInfo = async () => {
         "/naver/user-info",
         { headers: { "Authorization": `Bearer ${naverAccessToken}` } }
     )
-    const {name, profile_image} = response.data
-    debugger
+    const { name, profile_image } = response.data
+
     updateProfile(name, profile_image)
 }
 
@@ -109,11 +135,12 @@ window.onload = async () => {
     if (isNaver) {
         await getNaverAccessToken(authorizationCode)
         await getNaverUserInfo()
-
+        currentlyLoggedInWith = "naver"
 
     } else {
         await getKakaoToken(authorizationCode)
         const { nickname, profile_image, thumbnail_image } = await getKakaoUserInfo()
         updateProfile(nickname, profile_image)
+        currentlyLoggedInWith = "kakao"
     }
 }
