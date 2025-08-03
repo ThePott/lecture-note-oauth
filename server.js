@@ -5,6 +5,10 @@ const dotenv = require("dotenv")
 dotenv.config()
 
 const kakaoClientId = process.env.KAKAO_CLIENT_ID
+const naverState = process.env.NAVER_STATE
+const naverClientId = process.env.NAVER_CLIENT_ID
+const naverClientSecret = process.env.NAVER_CLIENT_SECRET
+
 const redirectUri = "http://localhost:5500"
 const app = express()
 app.use(express.json())
@@ -78,5 +82,27 @@ app.post("/kakao/logout", async (req, res) => {
     res.send("---- logout success")
 })
 
+app.get("/naver/env", async (req, res) => {
+    res.json({ naverState, naverClientId, naverClientSecret })
+})
+
+app.post("/naver/code-to-token", async (req, res) => {
+    const authorizationCode = req.body
+    console.log("---- in server naver auth code:", authorizationCode)
+
+    const url = `https://nid.naver.com/oauth2.0/token?client_id=${naverClientId}&client_secret=${naverClientSecret}&grant_type=authorization_code&state=${naverState}&code=${authorizationCode}`
+    const response = await axios.get(url)
+    const { access_token, refresh_token } = response.data
+
+    res.status(200).json({ access_token, refresh_token })
+})
+
+app.get("/naver/user-info", async (req, res) => {
+    const naverAccessToken = req.headers.authorization.split(" ")[1]
+    const response = await axios.get("https://openapi.naver.com/v1/nid/me", {headers: {"Authorization": `Bearer ${naverAccessToken}`}})
+    const {name, profile_image} = response.data.response
+    console.log("--- in server user info:", name, profile_image, response.data)
+    res.json({name, profile_image})
+})
 
 app.listen(3000, () => console.log("server is on port 3000"))
