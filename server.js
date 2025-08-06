@@ -7,6 +7,7 @@ dotenv.config()
 const kakaoClientId = process.env.KAKAO_CLIENT_ID
 const naverState = process.env.NAVER_STATE
 const naverClientId = process.env.NAVER_CLIENT_ID
+/** 클라이언트로 넘어가면 안 됨 */
 const naverClientSecret = process.env.NAVER_CLIENT_SECRET
 
 const redirectUri = "http://localhost:5500"
@@ -77,7 +78,7 @@ app.post("/kakao/logout", async (req, res) => {
 
 
 app.get("/naver/env", async (req, res) => {
-    res.json({ naverState, naverClientId, naverClientSecret })
+    res.json({ naverState, naverClientId })
 })
 
 app.post("/naver/code-to-token", async (req, res) => {

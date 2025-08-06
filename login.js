@@ -9,7 +9,6 @@ const redirectUri = "http://localhost:5500"
 let kakaoClientId = null
 let kakaoAccessToken = null
 let naverClientId = null
-let naverClientSecret = null
 let naverAccessToken = null
 let naverState = null
 let currentlyLoggedInWith = null
@@ -61,13 +60,12 @@ const kakaoLogout = async () => {
 
 /** NAVER env */
 const updateNaverEnv = async () => {
-    if (naverClientId && naverClientSecret) { return }
+    if (naverClientId) { return }
 
     // env variable 가져오기
     const response = await axios.get("/naver/env")
     naverState = response.data.naverState
     naverClientId = response.data.naverClientId
-    naverClientSecret = response.data.naverClientSecret
 }
 
 /** NAVER env -> auth code */
